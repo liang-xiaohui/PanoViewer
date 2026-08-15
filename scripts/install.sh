@@ -24,6 +24,8 @@ echo "OK  $APP_SUPPORT"
 
 # 3. 编译拖放 App
 osacompile -o "$APP_OUT" "$APPLET_SRC"
+cp "$ROOT/assets/PanoViewer.icns" "$APP_OUT/Contents/Resources/applet.icns"
+touch "$APP_OUT"
 echo "OK  $APP_OUT"
 
 # 4. iCloud 同步（可选）

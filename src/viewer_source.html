@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<link rel="icon" type="image/png" href="__APP_ICON__">
+<link rel="apple-touch-icon" href="__APP_ICON__">
 <title>360° 全景查看器</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -108,7 +110,12 @@ let mode = 'unfold';
 // 各模式状态
 const view  = { lon: 0, lat: 0, fov: 75 };             // 内视球体视角
 const disc  = { opacity: 0, f: 0.47, spin: 0, zoom: 1, pole: -1, tilt: 0, free: 0 };
-const globe = { opacity: 0, rx: 0.18, ry: 0, dist: 3.0 };
+const globe = { opacity: 0, dist: 3.0, quaternion: new THREE.Quaternion() };
+const globeYawAxis = new THREE.Vector3(0, 1, 0);
+const globePitchAxis = new THREE.Vector3(0, 0, 1);
+const globeYawQ = new THREE.Quaternion();
+const globePitchQ = new THREE.Quaternion();
+const globeDeltaQ = new THREE.Quaternion();
 const inertia = { dragging: false, x: 0, y: 0, lastTime: 0 };
 let polarLocked = true;
 const bg    = { sphereOpacity: 1 };                     // 内视球体透明度（水晶球模式下淡出）
@@ -492,8 +499,7 @@ function bindControls() {
       view.lon -= dx * 0.12;
       view.lat = THREE.MathUtils.clamp(view.lat + dy * 0.12, -85, 85);
     } else if (mode === 'crystal') {
-      globe.ry -= dx * 0.006;
-      globe.rx = THREE.MathUtils.clamp(globe.rx - dy * 0.006, -1.3, 1.3);
+      rotateGlobe(dx, dy);
     } else {
       disc.spin -= dx * 0.004;
       if (!polarLocked) {
@@ -594,6 +600,13 @@ function bindControls() {
   });
 }
 
+function rotateGlobe(dx, dy) {
+  globeYawQ.setFromAxisAngle(globeYawAxis, dx * 0.006);
+  globePitchQ.setFromAxisAngle(globePitchAxis, dy * 0.006);
+  globeDeltaQ.copy(globePitchQ).multiply(globeYawQ);
+  globe.quaternion.premultiply(globeDeltaQ).normalize();
+}
+
 function applyZoom(delta) {
   if (mode === 'unfold') {
     view.fov = THREE.MathUtils.clamp(view.fov * Math.exp(delta), 25, 110);
@@ -634,8 +647,7 @@ function stepInertia(now) {
     view.lon -= inertia.x * 0.12 * frames;
     view.lat = THREE.MathUtils.clamp(view.lat + inertia.y * 0.12 * frames, -85, 85);
   } else if (mode === 'crystal') {
-    globe.ry -= inertia.x * 0.006 * frames;
-    globe.rx = THREE.MathUtils.clamp(globe.rx - inertia.y * 0.006 * frames, -1.3, 1.3);
+    rotateGlobe(inertia.x * frames, inertia.y * frames);
   } else {
     disc.spin -= inertia.x * 0.004 * frames;
     if (!polarLocked) {
@@ -671,7 +683,7 @@ function animate() {
 
   globeMat.opacity = globe.opacity;
   globeMesh.visible = globe.opacity > 0.01;
-  globeMesh.rotation.set(globe.rx, globe.ry, 0);
+  globeMesh.quaternion.copy(globe.quaternion);
   // 水晶球始终放在相机视线方向，避免相机朝向改变后球跑出画面
   globeMesh.position.copy(_target).multiplyScalar(globe.dist);
 
