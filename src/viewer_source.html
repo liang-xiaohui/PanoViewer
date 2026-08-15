@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>360° 全景查看器</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #101014; font-family: -apple-system, "PingFang SC", sans-serif; }
+  #canvas-wrap { width: 100%; height: 100%; }
+  canvas { display: block; cursor: grab; }
+  canvas:active { cursor: grabbing; }
+  #dropzone {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 16px;
+    background: #101014; color: #ccc; z-index: 10; cursor: pointer;
+    transition: background .2s;
+  }
+  #dropzone.dragover { background: #2a2a35; }
+  #dropzone .icon { font-size: 64px; }
+  #dropzone h1 { font-size: 22px; font-weight: 600; color: #eee; }
+  #dropzone p { font-size: 14px; color: #888; }
+  #dropzone .hint { font-size: 12px; color: #666; margin-top: 8px; text-align: center; padding: 0 24px; }
+  #fileInput { display: none; }
+  #modebar {
+    position: absolute; bottom: max(16px, env(safe-area-inset-bottom)); left: 50%;
+    transform: translateX(-50%); z-index: 20; display: none; gap: 6px;
+    padding: 6px; border-radius: 999px; background: rgba(0,0,0,.55);
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  }
+  #modebar button {
+    padding: 8px 16px; border: none; border-radius: 999px;
+    background: transparent; color: #ddd; font-size: 14px; cursor: pointer;
+    white-space: nowrap; transition: background .15s, color .15s;
+  }
+  #modebar button.active { background: #fff; color: #111; font-weight: 600; }
+  #modebar button:not(.active):hover { background: rgba(255,255,255,.15); }
+  #modebar button.shot { color: #ffd60a; }
+  #loading {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+    z-index: 15; display: none; color: #aaa; font-size: 14px;
+  }
+  #shotOverlay {
+    position: absolute; inset: 0; z-index: 40; display: none;
+    align-items: center; justify-content: center; flex-direction: column; gap: 14px;
+    background: rgba(0,0,0,.82); padding: 20px;
+  }
+  #shotOverlay img {
+    max-width: 92%; max-height: 68%; border-radius: 10px;
+    box-shadow: 0 8px 40px rgba(0,0,0,.6); -webkit-touch-callout: default;
+  }
+  #shotOverlay .shot-actions { display: flex; gap: 12px; }
+  #shotOverlay button {
+    padding: 10px 22px; border: none; border-radius: 999px;
+    background: #fff; color: #111; font-size: 14px; font-weight: 600; cursor: pointer;
+  }
+  #shotOverlay button.ghost { background: rgba(255,255,255,.18); color: #eee; }
+  #shotOverlay .shot-hint { font-size: 12px; color: #999; }
+</style>
+</head>
+<body>
+<div id="canvas-wrap"></div>
+
+<div id="dropzone">
+  <div class="icon">🌐</div>
+  <h1>360° 全景查看器</h1>
+  <p>点击选择全景照片（iPhone 点击此处选图）</p>
+  <p class="hint">展开 · 小行星 · 水晶球 · 隧道 · 截图 · 支持等距圆柱投影全景图</p>
+</div>
+<input type="file" id="fileInput" accept="image/*">
+
+<div id="modebar">
+  <button data-mode="unfold" class="active">展开</button>
+  <button data-mode="planet">小行星</button>
+  <button data-mode="crystal">水晶球</button>
+  <button data-mode="tunnel">隧道</button>
+  <button id="btnShot" class="shot">📸 截图</button>
+</div>
+<div id="loading">正在加载全景图，请稍候…</div>
+
+<div id="shotOverlay">
+  <img id="shotImg" alt="截图预览">
+  <div class="shot-actions">
+    <button id="btnSaveShot">存储图片</button>
+    <button id="btnCloseShot" class="ghost">关闭</button>
+  </div>
+  <p class="shot-hint">iPhone：长按上方图片 →「存储到照片」；Mac：点击「存储图片」下载</p>
+</div>
+
+<script>
+__THREE_JS__
+</script>
+<script>
+const EMBEDDED_IMAGE = "__EMBEDDED_IMAGE__";
+const dropzone = document.getElementById('dropzone');
+const fileInput = document.getElementById('fileInput');
+const wrap = document.getElementById('canvas-wrap');
+
+let renderer, scene, camera, texture;
+let sphereMesh, sphereMat;     // 内视球体：展开模式主画面 / 极射模式背景天空
+let discMesh, discUniforms;    // 极射圆盘：小行星 / 隧道
+let globeMesh, globeMat;       // 外视球体：水晶球
+let mode = 'unfold';
+
+// 各模式状态
+const view  = { lon: 0, lat: 0, fov: 75 };             // 内视球体视角
+const disc  = { opacity: 0, f: 0.47, spin: 0, zoom: 1, pole: -1 };
+const globe = { opacity: 0, rx: 0.28, ry: 0, dist: 2.7 };
+const bg    = { sphereOpacity: 1 };                     // 内视球体透明度（水晶球模式下淡出）
+
+// 极射投影参数：视线中心锁死在天底(-1)/天顶(+1)。
+// u、v 全部用 φ、θ 的解析线性式（绝不用 atan/asin——分支切割正是拼缝脏带的根源）：
+//   pole -1（天底）: u = (φ-π)/2π,  v = θ/π
+//   pole +1（天顶）: u = (π-φ)/2π,  v = 1 - θ/π
+// φ∈[0,2π] 首末列顶点重合但不相连，任何四边形内 u 单调连续，RepeatWrapping 自然回绕。
+const POLES = {
+  '-1': { uSlope:  1, uOff: -Math.PI, vSlope:  1, vOff: 0      },
+  '1':  { uSlope: -1, uOff:  Math.PI, vSlope: -1, vOff: Math.PI },
+};
+
+// 模式预设
+const PRESETS = {
+  planet: { pole: -1, horizonR: 0.94 },
+  tunnel: { pole:  1, horizonR: 0.94 },
+};
+
+// ---------- 载入 ----------
+
+(function () {
+  const h = decodeURIComponent(location.hash.slice(1));
+  if (h && h.startsWith('data:image/')) loadImage(h);
+  else if (EMBEDDED_IMAGE) loadImage(EMBEDDED_IMAGE);
+})();
+
+dropzone.addEventListener('click', () => fileInput.click());
+dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('dragover'); });
+dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+dropzone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropzone.classList.remove('dragover');
+  const f = e.dataTransfer.files[0];
+  if (f) load(f);
+});
+fileInput.addEventListener('change', () => {
+  if (fileInput.files[0]) load(fileInput.files[0]);
+});
+
+function load(file) {
+  if (!file.type.startsWith('image/')) { alert('请选择图片文件'); return; }
+  const reader = new FileReader();
+  reader.onload = () => loadImage(reader.result);
+  reader.onerror = () => alert('图片读取失败，请重试');
+  reader.readAsDataURL(file);
+}
+
+function loadImage(src) {
+  document.getElementById('loading').style.display = 'block';
+  const img = new Image();
+  img.onload = () => startViewer(img);
+  img.onerror = () => {
+    document.getElementById('loading').style.display = 'none';
+    alert('图片解码失败');
+  };
+  img.src = src;
+}
+
+// ---------- 图像预处理：归一到 2 的幂（WebGL1 mipmap + RepeatWrapping 需要） ----------
+
+function potSize(n, cap) {
+  let p = 1;
+  while (p * 2 <= n) p *= 2;
+  const next = p * 2;
+  const chosen = (next <= cap && next <= n * 1.34) ? next : p;
+  return Math.max(512, Math.min(chosen, cap));
+}
+
+function makePOTCanvas(img, maxTex) {
+  const W = potSize(img.width, maxTex);
+  const H = potSize(img.height, maxTex);
+  const c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  c.getContext('2d').drawImage(img, 0, 0, W, H);
+  return c;
+}
+
+// ---------- 极射圆盘着色器（小行星 / 隧道） ----------
+
+const VERT = `
+uniform float f, spin, rMax, aspect, uSlope, uOff, vSlope, vOff, thMax;
+varying vec2 vUv;
+varying float vRho;
+const float PI = 3.141592653589793;
+
+void main() {
+  float rho = position.x;              // 0..1 归一化半径
+  float phi = position.y + spin;       // 方位角
+  float th = thMax * pow(rho, 2.5);    // 距极点的角距，极点附近网格加密
+  float r = clamp(f * 2.0 * tan(th * 0.5), 0.0, rMax);   // 极射赤面投影
+  vec2 ndc = vec2(cos(phi) / aspect, -sin(phi)) * r;
+  vUv = vec2((uSlope * phi + uOff) / (2.0 * PI), (vSlope * th + vOff) / PI);
+  vRho = rho;
+  gl_Position = vec4(ndc, 0.0, 1.0);
+}
+`;
+
+const FRAG = `
+precision mediump float;
+uniform sampler2D map;
+uniform float opacity;
+varying vec2 vUv;
+varying float vRho;
+void main() {
+  float a = opacity * (1.0 - smoothstep(0.90, 0.985, vRho));
+  gl_FragColor = vec4(texture2D(map, vUv).rgb, a);
+}
+`;
+
+// 极网格圆盘（ρ × φ），j=0 与 j=angular 为重合顶点（网格闭合缝，无三角形跨越）
+function makeDiscGeometry(radial, angular) {
+  const verts = new Float32Array((radial + 1) * (angular + 1) * 3);
+  let k = 0;
+  for (let i = 0; i <= radial; i++) {
+    const rho = i / radial;
+    for (let j = 0; j <= angular; j++) {
+      verts[k++] = rho;
+      verts[k++] = j / angular * Math.PI * 2.0;
+      verts[k++] = 0;
+    }
+  }
+  const idx = new Uint32Array(radial * angular * 6);
+  let m = 0;
+  for (let i = 0; i < radial; i++) {
+    for (let j = 0; j < angular; j++) {
+      const a = i * (angular + 1) + j;
+      const b = a + angular + 1;
+      idx[m++] = a; idx[m++] = b;     idx[m++] = a + 1;
+      idx[m++] = a + 1; idx[m++] = b; idx[m++] = b + 1;
+    }
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(verts, 3));
+  geo.setIndex(new THREE.BufferAttribute(idx, 1));
+  return geo;
+}
+
+// ---------- 启动 ----------
+
+function startViewer(img) {
+  dropzone.style.display = 'none';
+  document.getElementById('loading').style.display = 'block';
+
+  renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+  renderer.setPixelRatio(window.devicePixelRatio);
+  renderer.setSize(wrap.clientWidth, wrap.clientHeight);
+  wrap.appendChild(renderer.domElement);
+
+  const maxTex = Math.min(renderer.capabilities.maxTextureSize || 4096, 16384);
+  texture = new THREE.CanvasTexture(makePOTCanvas(img, maxTex));
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color('#101014');
+  camera = new THREE.PerspectiveCamera(view.fov, wrap.clientWidth / wrap.clientHeight, 0.1, 1100);
+
+  // 1) 内视球体（scale -1 从内部观看）
+  const sphereGeo = new THREE.SphereGeometry(500, 128, 64);
+  sphereGeo.scale(-1, 1, 1);
+  sphereMat = new THREE.MeshBasicMaterial({ map: texture, transparent: true, depthWrite: true });
+  sphereMesh = new THREE.Mesh(sphereGeo, sphereMat);
+  sphereMesh.renderOrder = -10;
+  scene.add(sphereMesh);
+
+  // 2) 水晶球：从外部观看的正常球体（不翻转），初始隐藏
+  globeMat = new THREE.MeshBasicMaterial({ map: texture, transparent: true, opacity: 0 });
+  globeMesh = new THREE.Mesh(new THREE.SphereGeometry(1, 128, 64), globeMat);
+  globeMesh.renderOrder = -5;
+  globeMesh.visible = false;
+  scene.add(globeMesh);
+
+  // 3) 极射圆盘（小行星 / 隧道）
+  const p = POLES['-1'];
+  discUniforms = {
+    map: { value: texture },
+    f: { value: disc.f }, spin: { value: 0 },
+    rMax: { value: 2.1 }, aspect: { value: 1 },
+    thMax: { value: 2.9671 },
+    uSlope: { value: p.uSlope }, uOff: { value: p.uOff },
+    vSlope: { value: p.vSlope }, vOff: { value: p.vOff },
+    opacity: { value: 0 },
+  };
+  discMesh = new THREE.Mesh(
+    makeDiscGeometry(200, 360),
+    new THREE.ShaderMaterial({
+      uniforms: discUniforms,
+      vertexShader: VERT,
+      fragmentShader: FRAG,
+      transparent: true,
+      depthTest: false,
+      depthWrite: false,
+    })
+  );
+  discMesh.frustumCulled = false;
+  discMesh.renderOrder = 10;
+  discMesh.visible = false;
+  scene.add(discMesh);
+
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('modebar').style.display = 'flex';
+
+  onResize();
+  bindControls();
+  window.addEventListener('resize', onResize);
+  animate();
+
+  // DJI 风格开场：小行星 → 展开进入正常视角
+  mode = 'planet';
+  disc.pole = -1;
+  disc.opacity = 1;
+  disc.f = PRESETS.planet.horizonR / 2;
+  view.lat = -89; view.fov = 95;
+  setActiveBtn('planet');
+  setTimeout(() => transitionTo('unfold'), 1100);
+}
+
+function setActiveBtn(m) {
+  document.querySelectorAll('#modebar button[data-mode]').forEach(b => {
+    b.classList.toggle('active', b.dataset.mode === m);
+  });
+}
+
+// ---------- 补间动画 ----------
+
+let tweens = [];
+const easeInOutCubic = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+
+function tween(obj, to, dur) {
+  tweens = tweens.filter(tw => tw.obj !== obj);
+  const from = {};
+  for (const k in to) from[k] = obj[k];
+  tweens.push({ obj, from, to, t0: performance.now(), dur });
+}
+
+function stepTweens(now) {
+  for (let i = tweens.length - 1; i >= 0; i--) {
+    const tw = tweens[i];
+    let t = (now - tw.t0) / tw.dur;
+    if (t >= 1) t = 1;
+    const e = easeInOutCubic(t);
+    for (const k in tw.to) tw.obj[k] = tw.from[k] + (tw.to[k] - tw.from[k]) * e;
+    if (t === 1) tweens.splice(i, 1);
+  }
+}
+
+function lonShortest(from, to) {
+  let d = (to - from) % 360;
+  if (d > 180) d -= 360;
+  if (d < -180) d += 360;
+  return from + d;
+}
+
+// ---------- 模式切换 ----------
+
+function setPole(pole) {
+  const p = POLES[String(pole)];
+  disc.pole = pole;
+  discUniforms.uSlope.value = p.uSlope;
+  discUniforms.uOff.value = p.uOff;
+  discUniforms.vSlope.value = p.vSlope;
+  discUniforms.vOff.value = p.vOff;
+}
+
+function transitionTo(m) {
+  const prev = mode;
+  mode = m;
+  setActiveBtn(m);
+
+  if (m === 'unfold') {
+    tween(disc, { opacity: 0 }, 600);
+    tween(globe, { opacity: 0 }, 400);
+    tween(bg, { sphereOpacity: 1 }, 500);
+    tween(view, { lon: lonShortest(view.lon, 0), lat: 0, fov: 75 }, 1000);
+    return;
+  }
+
+  if (m === 'crystal') {
+    tween(disc, { opacity: 0 }, 300);
+    tween(bg, { sphereOpacity: 0 }, 500);
+    tween(globe, { opacity: 1 }, 700);
+    tween(view, { lon: lonShortest(view.lon, 0), lat: 0, fov: 60 }, 700);
+    return;
+  }
+
+  // planet / tunnel（极射投影）
+  const pre = PRESETS[m];
+  const enterPolar = () => {
+    setPole(pre.pole);
+    disc.zoom = 1;
+    disc.spin = 0;
+    tween(disc, { opacity: 1, f: pre.horizonR / 2 }, 800);
+    tween(globe, { opacity: 0 }, 300);
+    tween(bg, { sphereOpacity: 1 }, 400);
+    // 背景球体看向极点，经度对齐 90°（与圆盘的天空方向衔接，最短路径）
+    tween(view, { lat: pre.pole < 0 ? -89 : 89, fov: 95, lon: lonShortest(view.lon, 90) }, 1000);
+  };
+  const wasPolar = prev === 'planet' || prev === 'tunnel';
+  if (wasPolar && disc.pole !== pre.pole) {
+    // 天底 ↔ 天顶翻转：先淡出换极再淡入
+    tween(disc, { opacity: 0 }, 250);
+    setTimeout(enterPolar, 260);
+  } else {
+    enterPolar();
+  }
+}
+
+// ---------- 交互 ----------
+// 展开：拖动环视，滚轮/捏合变焦
+// 小行星/隧道：水平拖动自转，滚轮/捏合缩放星球
+// 水晶球：拖动拨转球体，滚轮/捏合拉近拉远
+
+function bindControls() {
+  const el = renderer.domElement;
+  let isDown = false, px = 0, py = 0;
+  let sLon = 0, sLat = 0, sSpin = 0, sRx = 0, sRy = 0;
+
+  el.addEventListener('pointerdown', e => {
+    isDown = true;
+    px = e.clientX; py = e.clientY;
+    sLon = view.lon; sLat = view.lat; sSpin = disc.spin; sRx = globe.rx; sRy = globe.ry;
+    if (mode === 'unfold') tweens = tweens.filter(tw => tw.obj !== view);
+    if (mode === 'crystal') tweens = tweens.filter(tw => tw.obj !== globe && tw.obj !== view);
+    el.setPointerCapture(e.pointerId);
+  });
+  el.addEventListener('pointermove', e => {
+    if (!isDown) return;
+    const dx = e.clientX - px, dy = e.clientY - py;
+    if (mode === 'unfold') {
+      view.lon = sLon - dx * 0.12;
+      view.lat = THREE.MathUtils.clamp(sLat + dy * 0.12, -85, 85);
+    } else if (mode === 'crystal') {
+      globe.ry = sRy - dx * 0.006;
+      globe.rx = THREE.MathUtils.clamp(sRx - dy * 0.006, -1.3, 1.3);
+    } else {
+      disc.spin = sSpin - dx * 0.004;   // 极射模式：水平拖动 = 自转
+    }
+  });
+  el.addEventListener('pointerup', () => { isDown = false; });
+  el.addEventListener('pointercancel', () => { isDown = false; });
+
+  el.addEventListener('wheel', e => {
+    e.preventDefault();
+    applyZoom(e.deltaY * 0.0018);
+  }, { passive: false });
+
+  // 双指捏合缩放（iOS Safari 触屏）
+  let pinchStart = 0, zoomStart = 1, fovStart = 75, distStart = 2.7;
+  el.addEventListener('touchstart', e => {
+    if (e.touches.length === 2) {
+      pinchStart = pinchDist(e);
+      zoomStart = disc.zoom; fovStart = view.fov; distStart = globe.dist;
+    }
+  }, { passive: true });
+  el.addEventListener('touchmove', e => {
+    if (e.touches.length === 2 && pinchStart > 0) {
+      e.preventDefault();
+      const ratio = pinchStart / pinchDist(e);
+      if (mode === 'unfold') view.fov = THREE.MathUtils.clamp(fovStart * ratio, 25, 110);
+      else if (mode === 'crystal') globe.dist = THREE.MathUtils.clamp(distStart * ratio, 1.7, 4.5);
+      else disc.zoom = THREE.MathUtils.clamp(zoomStart / ratio, 0.55, 2.6);
+    }
+  }, { passive: false });
+
+  function pinchDist(e) {
+    const dx = e.touches[0].clientX - e.touches[1].clientX;
+    const dy = e.touches[0].clientY - e.touches[1].clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+
+  // 查看中也可拖入新图片
+  el.addEventListener('dragover', e => e.preventDefault());
+  el.addEventListener('drop', e => {
+    e.preventDefault();
+    const f = e.dataTransfer.files[0];
+    if (f) load(f);
+  });
+
+  document.querySelectorAll('#modebar button[data-mode]').forEach(b => {
+    b.addEventListener('click', () => transitionTo(b.dataset.mode));
+  });
+
+  document.getElementById('btnShot').addEventListener('click', snapshot);
+  document.getElementById('btnSaveShot').addEventListener('click', () => {
+    const a = document.createElement('a');
+    a.href = document.getElementById('shotImg').src;
+    const d = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    a.download = `全景_${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}.png`;
+    document.body.appendChild(a); a.click(); a.remove();
+  });
+  document.getElementById('btnCloseShot').addEventListener('click', () => {
+    document.getElementById('shotOverlay').style.display = 'none';
+  });
+}
+
+function applyZoom(delta) {
+  if (mode === 'unfold') {
+    view.fov = THREE.MathUtils.clamp(view.fov * Math.exp(delta), 25, 110);
+  } else if (mode === 'crystal') {
+    globe.dist = THREE.MathUtils.clamp(globe.dist * Math.exp(delta), 1.7, 4.5);
+  } else {
+    disc.zoom = THREE.MathUtils.clamp(disc.zoom * Math.exp(-delta), 0.55, 2.6);
+  }
+}
+
+// ---------- 截图 ----------
+
+function snapshot() {
+  renderer.render(scene, camera);
+  document.getElementById('shotImg').src = renderer.domElement.toDataURL('image/png');
+  document.getElementById('shotOverlay').style.display = 'flex';
+}
+
+// ---------- 主循环 ----------
+
+function onResize() {
+  if (!renderer) return;
+  camera.aspect = wrap.clientWidth / wrap.clientHeight;
+  camera.updateProjectionMatrix();
+  discUniforms.aspect.value = camera.aspect;
+  discUniforms.rMax.value = Math.sqrt(1 + camera.aspect * camera.aspect) + 0.05;
+  renderer.setSize(wrap.clientWidth, wrap.clientHeight);
+}
+
+const _target = new THREE.Vector3();
+
+function animate() {
+  requestAnimationFrame(animate);
+  stepTweens(performance.now());
+
+  camera.fov = view.fov;
+  camera.updateProjectionMatrix();
+  const phi = THREE.MathUtils.degToRad(90 - view.lat);
+  const theta = THREE.MathUtils.degToRad(view.lon);
+  _target.set(
+    Math.sin(phi) * Math.cos(theta),
+    Math.cos(phi),
+    Math.sin(phi) * Math.sin(theta)
+  );
+  camera.lookAt(_target);
+
+  sphereMat.opacity = bg.sphereOpacity;
+  sphereMesh.visible = bg.sphereOpacity > 0.01;
+
+  globeMat.opacity = globe.opacity;
+  globeMesh.visible = globe.opacity > 0.01;
+  globeMesh.rotation.set(globe.rx, globe.ry, 0);
+  // 水晶球始终放在相机视线方向，避免相机朝向改变后球跑出画面
+  globeMesh.position.copy(_target).multiplyScalar(globe.dist);
+
+  discMesh.visible = disc.opacity > 0.01;
+  discUniforms.opacity.value = disc.opacity;
+  discUniforms.spin.value = disc.spin;
+  discUniforms.f.value = disc.f * disc.zoom;
+
+  renderer.render(scene, camera);
+}
+</script>
+</body>
+</html>
