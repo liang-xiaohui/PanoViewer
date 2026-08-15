@@ -36,6 +36,8 @@
   #modebar button.active { background: #fff; color: #111; font-weight: 600; }
   #modebar button:not(.active):hover { background: rgba(255,255,255,.15); }
   #modebar button.shot { color: #ffd60a; }
+  #btnLock { display: none; min-width: 42px; padding-inline: 12px; }
+  #btnLock.unlocked { color: #7dd3fc; background: rgba(125,211,252,.14); }
   #loading {
     position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
     z-index: 15; display: none; color: #aaa; font-size: 14px;
@@ -74,6 +76,7 @@
   <button data-mode="planet">小行星</button>
   <button data-mode="crystal">水晶球</button>
   <button data-mode="tunnel">隧道</button>
+  <button id="btnLock" title="锁定标准投影">🔒</button>
   <button id="btnShot" class="shot">📸 截图</button>
 </div>
 <div id="loading">正在加载全景图，请稍候…</div>
@@ -96,7 +99,7 @@ const dropzone = document.getElementById('dropzone');
 const fileInput = document.getElementById('fileInput');
 const wrap = document.getElementById('canvas-wrap');
 
-let renderer, scene, camera, texture;
+let renderer, scene, camera, texture, freeTexture;
 let sphereMesh, sphereMat;     // 内视球体：展开模式主画面 / 极射模式背景天空
 let discMesh, discUniforms;    // 极射圆盘：小行星 / 隧道
 let globeMesh, globeMat;       // 外视球体：水晶球
@@ -104,9 +107,10 @@ let mode = 'unfold';
 
 // 各模式状态
 const view  = { lon: 0, lat: 0, fov: 75 };             // 内视球体视角
-const disc  = { opacity: 0, f: 0.47, spin: 0, zoom: 1, pole: -1 };
+const disc  = { opacity: 0, f: 0.47, spin: 0, zoom: 1, pole: -1, tilt: 0, free: 0 };
 const globe = { opacity: 0, rx: 0.18, ry: 0, dist: 3.0 };
 const inertia = { dragging: false, x: 0, y: 0, lastTime: 0 };
+let polarLocked = true;
 const bg    = { sphereOpacity: 1 };                     // 内视球体透明度（水晶球模式下淡出）
 
 // 极射投影参数：视线中心锁死在天底(-1)/天顶(+1)。
@@ -188,8 +192,10 @@ function makePOTCanvas(img, maxTex) {
 
 const VERT = `
 uniform float f, spin, rMax, aspect, uSlope, uOff, vSlope, vOff, thMax;
+uniform float poleVal, tilt;
 varying vec2 vUv;
 varying float vRho;
+varying vec3 vDirection;
 const float PI = 3.141592653589793;
 
 void main() {
@@ -200,6 +206,11 @@ void main() {
   float r = clamp(f * 2.0 * tan(th * 0.5), 0.0, rMax);
   vec2 ndc = vec2(cos(screenPhi) / aspect, -sin(screenPhi)) * r;
   vUv = vec2((uSlope * phi + uOff) / (2.0 * PI), (vSlope * th + vOff) / PI);
+  float lambda = -poleVal * (phi - PI);
+  vec3 direction = vec3(sin(th) * cos(lambda), poleVal * cos(th), sin(th) * sin(lambda));
+  float ct = cos(tilt), st = sin(tilt);
+  vDirection = vec3(direction.x, direction.y * ct - direction.z * st,
+                    direction.y * st + direction.z * ct);
   vRho = rho;
   gl_Position = vec4(ndc, 0.0, 1.0);
 }
@@ -207,13 +218,18 @@ void main() {
 
 const FRAG = `
 precision mediump float;
-uniform sampler2D map;
-uniform float opacity;
+uniform sampler2D map, freeMap;
+uniform float opacity, freeMix;
 varying vec2 vUv;
 varying float vRho;
+varying vec3 vDirection;
+const float PI = 3.141592653589793;
 void main() {
   float a = opacity * (1.0 - smoothstep(0.90, 0.985, vRho));
-  gl_FragColor = vec4(texture2D(map, vUv).rgb, a);
+  vec3 d = normalize(vDirection);
+  vec2 freeUv = vec2(atan(d.z, d.x) / (2.0 * PI), acos(clamp(-d.y, -1.0, 1.0)) / PI);
+  vec3 color = mix(texture2D(map, vUv).rgb, texture2D(freeMap, freeUv).rgb, freeMix);
+  gl_FragColor = vec4(color, a);
 }
 `;
 
@@ -261,6 +277,16 @@ function startViewer(img) {
   texture.wrapS = THREE.RepeatWrapping;
   texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
 
+  // Free tilt moves the longitude seam through the image. Sampling it with
+  // mipmaps makes the u=0/1 derivative look like a dashed arc, so the free
+  // projection uses the same canvas with non-mipmapped linear filtering.
+  freeTexture = texture.clone();
+  freeTexture.wrapS = THREE.RepeatWrapping;
+  freeTexture.minFilter = THREE.LinearFilter;
+  freeTexture.magFilter = THREE.LinearFilter;
+  freeTexture.generateMipmaps = false;
+  freeTexture.needsUpdate = true;
+
   scene = new THREE.Scene();
   scene.background = new THREE.Color('#101014');
   camera = new THREE.PerspectiveCamera(view.fov, wrap.clientWidth / wrap.clientHeight, 0.1, 1100);
@@ -283,10 +309,11 @@ function startViewer(img) {
   // 3) 极射圆盘（小行星 / 隧道）
   const p = POLES['-1'];
   discUniforms = {
-    map: { value: texture },
+    map: { value: texture }, freeMap: { value: freeTexture },
     f: { value: disc.f }, spin: { value: 0 },
     rMax: { value: 2.1 }, aspect: { value: 1 },
     thMax: { value: 2.9671 },
+    poleVal: { value: -1 }, tilt: { value: 0 }, freeMix: { value: 0 },
     uSlope: { value: p.uSlope }, uOff: { value: p.uOff },
     vSlope: { value: p.vSlope }, vOff: { value: p.vOff },
     opacity: { value: 0 },
@@ -333,6 +360,16 @@ function setActiveBtn(m) {
   document.querySelectorAll('#modebar button[data-mode]').forEach(b => {
     b.classList.toggle('active', b.dataset.mode === m);
   });
+  updateLockButton();
+}
+
+function updateLockButton() {
+  const button = document.getElementById('btnLock');
+  const polar = mode === 'planet' || mode === 'tunnel';
+  button.style.display = polar ? 'inline-block' : 'none';
+  button.textContent = polarLocked ? '🔒' : '🔓';
+  button.title = polarLocked ? '解锁自由俯仰' : '锁定标准投影';
+  button.classList.toggle('unlocked', !polarLocked);
 }
 
 // ---------- 补间动画 ----------
@@ -374,6 +411,7 @@ function setPole(pole) {
   discUniforms.uOff.value = p.uOff;
   discUniforms.vSlope.value = p.vSlope;
   discUniforms.vOff.value = p.vOff;
+  discUniforms.poleVal.value = pole;
 }
 
 function transitionTo(m) {
@@ -404,6 +442,8 @@ function transitionTo(m) {
     setPole(pre.pole);
     disc.zoom = 1;
     disc.spin = 0;
+    disc.tilt = 0;
+    disc.free = polarLocked ? 0 : 1;
     tween(disc, { opacity: 1, f: pre.horizonR / 2 }, 800);
     tween(globe, { opacity: 0 }, 300);
     tween(bg, { sphereOpacity: 0 }, 400);
@@ -456,7 +496,9 @@ function bindControls() {
       globe.rx = THREE.MathUtils.clamp(globe.rx - dy * 0.006, -1.3, 1.3);
     } else {
       disc.spin -= dx * 0.004;
-      disc.zoom = THREE.MathUtils.clamp(disc.zoom * Math.exp(-dy * 0.004), 0.55, 2.6);
+      if (!polarLocked) {
+        disc.tilt = THREE.MathUtils.clamp(disc.tilt + dy * 0.0045, -1.30, 1.30);
+      }
     }
   });
   const endPointer = () => {
@@ -530,6 +572,14 @@ function bindControls() {
     b.addEventListener('click', () => transitionTo(b.dataset.mode));
   });
 
+  document.getElementById('btnLock').addEventListener('click', () => {
+    polarLocked = !polarLocked;
+    inertia.x = inertia.y = 0;
+    if (polarLocked) tween(disc, { tilt: 0, free: 0 }, 480);
+    else tween(disc, { free: 1 }, 180);
+    updateLockButton();
+  });
+
   document.getElementById('btnShot').addEventListener('click', snapshot);
   document.getElementById('btnSaveShot').addEventListener('click', () => {
     const a = document.createElement('a');
@@ -588,9 +638,11 @@ function stepInertia(now) {
     globe.rx = THREE.MathUtils.clamp(globe.rx - inertia.y * 0.006 * frames, -1.3, 1.3);
   } else {
     disc.spin -= inertia.x * 0.004 * frames;
-    disc.zoom = THREE.MathUtils.clamp(
-      disc.zoom * Math.exp(-inertia.y * 0.004 * frames), 0.55, 2.6
-    );
+    if (!polarLocked) {
+      disc.tilt = THREE.MathUtils.clamp(
+        disc.tilt + inertia.y * 0.0045 * frames, -1.30, 1.30
+      );
+    }
   }
   const damping = Math.pow(0.90, frames);
   inertia.x *= damping;
@@ -627,6 +679,8 @@ function animate() {
   discUniforms.opacity.value = disc.opacity;
   discUniforms.spin.value = disc.spin;
   discUniforms.f.value = disc.f * disc.zoom;
+  discUniforms.tilt.value = disc.tilt;
+  discUniforms.freeMix.value = disc.free;
 
   renderer.render(scene, camera);
 }
