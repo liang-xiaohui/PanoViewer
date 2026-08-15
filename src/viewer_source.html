@@ -8,7 +8,7 @@
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { width: 100%; height: 100%; overflow: hidden; background: #101014; font-family: -apple-system, "PingFang SC", sans-serif; }
   #canvas-wrap { width: 100%; height: 100%; }
-  canvas { display: block; cursor: grab; }
+  canvas { display: block; cursor: grab; touch-action: none; }
   canvas:active { cursor: grabbing; }
   #dropzone {
     position: absolute; inset: 0; display: flex; flex-direction: column;
@@ -105,7 +105,8 @@ let mode = 'unfold';
 // 各模式状态
 const view  = { lon: 0, lat: 0, fov: 75 };             // 内视球体视角
 const disc  = { opacity: 0, f: 0.47, spin: 0, zoom: 1, pole: -1 };
-const globe = { opacity: 0, rx: 0.28, ry: 0, dist: 2.7 };
+const globe = { opacity: 0, rx: 0.18, ry: 0, dist: 3.0 };
+const inertia = { dragging: false, x: 0, y: 0, lastTime: 0 };
 const bg    = { sphereOpacity: 1 };                     // 内视球体透明度（水晶球模式下淡出）
 
 // 极射投影参数：视线中心锁死在天底(-1)/天顶(+1)。
@@ -192,10 +193,10 @@ varying float vRho;
 const float PI = 3.141592653589793;
 
 void main() {
-  float rho = position.x;              // 0..1 归一化半径
-  float phi = position.y + spin;       // 方位角
-  float th = thMax * pow(rho, 2.5);    // 距极点的角距，极点附近网格加密
-  float r = clamp(f * 2.0 * tan(th * 0.5), 0.0, rMax);   // 极射赤面投影
+  float rho = position.x;
+  float phi = position.y + spin;
+  float th = thMax * pow(rho, 2.5);
+  float r = clamp(f * 2.0 * tan(th * 0.5), 0.0, rMax);
   vec2 ndc = vec2(cos(phi) / aspect, -sin(phi)) * r;
   vUv = vec2((uSlope * phi + uOff) / (2.0 * PI), (vSlope * th + vOff) / PI);
   vRho = rho;
@@ -227,7 +228,7 @@ function makeDiscGeometry(radial, angular) {
       verts[k++] = 0;
     }
   }
-  const idx = new Uint32Array(radial * angular * 6);
+  const idx = new Uint16Array(radial * angular * 6);
   let m = 0;
   for (let i = 0; i < radial; i++) {
     for (let j = 0; j < angular; j++) {
@@ -290,12 +291,15 @@ function startViewer(img) {
     opacity: { value: 0 },
   };
   discMesh = new THREE.Mesh(
-    makeDiscGeometry(200, 360),
+    // 160 * 360 keeps the vertex count below 65,535 so the mesh works on
+    // WebGL1 devices without OES_element_index_uint.
+    makeDiscGeometry(160, 360),
     new THREE.ShaderMaterial({
       uniforms: discUniforms,
       vertexShader: VERT,
       fragmentShader: FRAG,
       transparent: true,
+      side: THREE.DoubleSide,
       depthTest: false,
       depthWrite: false,
     })
@@ -318,6 +322,7 @@ function startViewer(img) {
   disc.pole = -1;
   disc.opacity = 1;
   disc.f = PRESETS.planet.horizonR / 2;
+  bg.sphereOpacity = 0;
   view.lat = -89; view.fov = 95;
   setActiveBtn('planet');
   setTimeout(() => transitionTo('unfold'), 1100);
@@ -373,6 +378,7 @@ function setPole(pole) {
 function transitionTo(m) {
   const prev = mode;
   mode = m;
+  inertia.x = inertia.y = 0;
   setActiveBtn(m);
 
   if (m === 'unfold') {
@@ -387,7 +393,7 @@ function transitionTo(m) {
     tween(disc, { opacity: 0 }, 300);
     tween(bg, { sphereOpacity: 0 }, 500);
     tween(globe, { opacity: 1 }, 700);
-    tween(view, { lon: lonShortest(view.lon, 0), lat: 0, fov: 60 }, 700);
+    tween(view, { lon: lonShortest(view.lon, 0), lat: 0, fov: 52 }, 700);
     return;
   }
 
@@ -399,7 +405,7 @@ function transitionTo(m) {
     disc.spin = 0;
     tween(disc, { opacity: 1, f: pre.horizonR / 2 }, 800);
     tween(globe, { opacity: 0 }, 300);
-    tween(bg, { sphereOpacity: 1 }, 400);
+    tween(bg, { sphereOpacity: 0 }, 400);
     // 背景球体看向极点，经度对齐 90°（与圆盘的天空方向衔接，最短路径）
     tween(view, { lat: pre.pole < 0 ? -89 : 89, fov: 95, lon: lonShortest(view.lon, 90) }, 1000);
   };
@@ -421,12 +427,13 @@ function transitionTo(m) {
 function bindControls() {
   const el = renderer.domElement;
   let isDown = false, px = 0, py = 0;
-  let sLon = 0, sLat = 0, sSpin = 0, sRx = 0, sRy = 0;
 
   el.addEventListener('pointerdown', e => {
     isDown = true;
     px = e.clientX; py = e.clientY;
-    sLon = view.lon; sLat = view.lat; sSpin = disc.spin; sRx = globe.rx; sRy = globe.ry;
+    inertia.dragging = true;
+    inertia.x = inertia.y = 0;
+    inertia.lastTime = performance.now();
     if (mode === 'unfold') tweens = tweens.filter(tw => tw.obj !== view);
     if (mode === 'crystal') tweens = tweens.filter(tw => tw.obj !== globe && tw.obj !== view);
     el.setPointerCapture(e.pointerId);
@@ -434,18 +441,28 @@ function bindControls() {
   el.addEventListener('pointermove', e => {
     if (!isDown) return;
     const dx = e.clientX - px, dy = e.clientY - py;
+    const now = performance.now();
+    const dt = Math.max(8, now - inertia.lastTime);
+    px = e.clientX; py = e.clientY; inertia.lastTime = now;
+    inertia.x = dx / dt * 16.667;
+    inertia.y = dy / dt * 16.667;
     if (mode === 'unfold') {
-      view.lon = sLon - dx * 0.12;
-      view.lat = THREE.MathUtils.clamp(sLat + dy * 0.12, -85, 85);
+      view.lon -= dx * 0.12;
+      view.lat = THREE.MathUtils.clamp(view.lat + dy * 0.12, -85, 85);
     } else if (mode === 'crystal') {
-      globe.ry = sRy - dx * 0.006;
-      globe.rx = THREE.MathUtils.clamp(sRx - dy * 0.006, -1.3, 1.3);
+      globe.ry -= dx * 0.006;
+      globe.rx = THREE.MathUtils.clamp(globe.rx - dy * 0.006, -1.3, 1.3);
     } else {
-      disc.spin = sSpin - dx * 0.004;   // 极射模式：水平拖动 = 自转
+      disc.spin -= dx * 0.004;
     }
   });
-  el.addEventListener('pointerup', () => { isDown = false; });
-  el.addEventListener('pointercancel', () => { isDown = false; });
+  const endPointer = () => {
+    isDown = false;
+    inertia.dragging = false;
+    if (performance.now() - inertia.lastTime > 80) inertia.x = inertia.y = 0;
+  };
+  el.addEventListener('pointerup', endPointer);
+  el.addEventListener('pointercancel', endPointer);
 
   el.addEventListener('wheel', e => {
     e.preventDefault();
@@ -453,7 +470,7 @@ function bindControls() {
   }, { passive: false });
 
   // 双指捏合缩放（iOS Safari 触屏）
-  let pinchStart = 0, zoomStart = 1, fovStart = 75, distStart = 2.7;
+  let pinchStart = 0, zoomStart = 1, fovStart = 75, distStart = 3.0;
   el.addEventListener('touchstart', e => {
     if (e.touches.length === 2) {
       pinchStart = pinchDist(e);
@@ -532,10 +549,31 @@ function onResize() {
 }
 
 const _target = new THREE.Vector3();
+let lastFrame = performance.now();
+
+function stepInertia(now) {
+  const frames = Math.min((now - lastFrame) / 16.667, 3);
+  lastFrame = now;
+  if (inertia.dragging || (Math.abs(inertia.x) + Math.abs(inertia.y) < 0.02)) return;
+  if (mode === 'unfold') {
+    view.lon -= inertia.x * 0.12 * frames;
+    view.lat = THREE.MathUtils.clamp(view.lat + inertia.y * 0.12 * frames, -85, 85);
+  } else if (mode === 'crystal') {
+    globe.ry -= inertia.x * 0.006 * frames;
+    globe.rx = THREE.MathUtils.clamp(globe.rx - inertia.y * 0.006 * frames, -1.3, 1.3);
+  } else {
+    disc.spin -= inertia.x * 0.004 * frames;
+  }
+  const damping = Math.pow(0.90, frames);
+  inertia.x *= damping;
+  inertia.y *= damping;
+}
 
 function animate() {
   requestAnimationFrame(animate);
-  stepTweens(performance.now());
+  const now = performance.now();
+  stepTweens(now);
+  stepInertia(now);
 
   camera.fov = view.fov;
   camera.updateProjectionMatrix();

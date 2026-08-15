@@ -1,6 +1,6 @@
 # PanoViewer — 离线单文件 360° 全景查看器
 
-一个零依赖、双击即用的 360° 全景照片查看器（macOS / iPhone 通用），模仿大疆 App 的四种观赏视角：**展开 / 小行星 / 水晶球 / 隧道**，外加截图导出。
+一个零前端依赖、双击即用的跨平台 360° 全景照片查看器（Windows / macOS / Linux / iPhone），模仿大疆 App 的四种观赏视角：**展开 / 小行星 / 水晶球 / 隧道**，外加截图导出。
 
 - 输入：等距圆柱投影（equirectangular）全景图，如 DJI 无人机拍摄的 360° 照片
 - 输出：单个 HTML 文件，three.js 已内联，**完全离线**可用
@@ -19,6 +19,48 @@
 模式切换带补间动画（easeInOutCubic），加载照片后自动播放「小行星 → 展开」开场动画。
 
 ## 快速开始
+
+### Windows
+
+需要 Python 3（仅用于构建和启动；生成的 HTML 本身不需要 Python）：
+
+```powershell
+py -3 scripts\build.py
+scripts\pano.cmd "D:\照片\全景图.jpg"
+```
+
+不传图片路径时会弹出文件选择框：
+
+```powershell
+scripts\pano.cmd
+```
+
+也可以直接双击 `dist/全景查看器-独立版.html`，然后点击或拖入全景图片。推荐使用最新版 Edge、Chrome 或 Firefox，并确保浏览器已启用 WebGL。
+
+生成独立 EXE 并加入当前用户的图片“打开方式”（无需管理员权限）：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\build_windows.ps1 -Install
+```
+
+生成的程序位于 `dist/PanoViewer.exe`，安装副本位于 `%LOCALAPPDATA%\Programs\PanoViewer\PanoViewer.exe`。卸载注册信息：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\build_windows.ps1 -Uninstall
+```
+
+### macOS / Linux
+
+统一的跨平台入口：
+
+```bash
+python3 scripts/build.py
+python3 scripts/pano.py /path/to/panorama.jpg
+```
+
+省略图片路径时会弹出文件选择框（Linux 需要发行版提供 tkinter）。macOS 还可以继续使用下面原有的拖放 App 安装方式。
+
+### macOS 拖放 App
 
 ```bash
 git clone <repo> && cd PanoViewer
