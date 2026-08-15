@@ -34,12 +34,6 @@ Windows 首次打开从 GitHub 下载的未签名程序时，SmartScreen 可能�
 2. 打开 DMG，将 PanoViewer 拖入“应用程序”，然后双击运行或把全景照片拖到 App 图标上。
 3. 当前 macOS App 尚未经过 Apple 公证；首次运行如被拦截，请先在 Finder 中右键 App 并选择“打开”。如果仍无法打开，请前往“系统设置 → 隐私与安全性”，找到 PanoViewer 的安全提示并选择“仍要打开”。
 
-### iPhone / iPad 快捷指令
-
-1. 从 [Releases](https://github.com/liang-xiaohui/PanoViewer/releases/latest) 下载并安装 `PanoViewer.shortcut`。
-2. 在“照片”中打开一张 360° 全景照片，点击“分享”，然后选择 PanoViewer。
-3. 快捷指令会下载查看器模板、在设备本地处理照片，并直接在 Safari 网页视图中打开。照片不会上传，但运行时需要连接 GitHub 下载模板。
-
 ### Linux / 其他平台
 
 从 Releases 下载 `PanoViewer-Standalone.html`，用支持 WebGL 的现代浏览器打开，再点击或拖入照片。该文件已内置所需程序，不需要网络或安装依赖。

@@ -32,12 +32,6 @@ The v1.0.0 executable is not commercially code-signed, so Windows SmartScreen ma
 2. Open the DMG, drag PanoViewer to Applications, then launch it or drop a panorama onto its icon.
 3. The macOS app is not yet notarized by Apple. If macOS blocks the first launch, Control-click the app in Finder and choose Open. If it is still blocked, go to System Settings → Privacy & Security, find the PanoViewer security notice, and choose Open Anyway.
 
-### iPhone / iPad Shortcut
-
-1. Download and install `PanoViewer.shortcut` from [Releases](https://github.com/liang-xiaohui/PanoViewer/releases/latest).
-2. Open a 360° panorama in Photos, tap Share, then choose PanoViewer.
-3. The shortcut downloads the viewer template, processes the photo locally, and opens it in a Safari web view. The photo is never uploaded, but the shortcut needs access to GitHub to download the template.
-
 ### Linux and other platforms
 
 Download `PanoViewer-Standalone.html` from the latest release, open it in a modern WebGL browser, then click or drag in a photo. The file includes everything it needs and works without a server, installation, or internet connection.

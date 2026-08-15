@@ -19,17 +19,15 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Build macOS disk image
-        run: |
-          ./scripts/build_macos.sh
-          cp dist/template.html dist/PanoViewer-Template.html
+        run: ./scripts/build_macos.sh
 
       - name: Upload macOS release asset
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release download '${{ github.ref_name }}' --pattern SHA256SUMS.txt --dir dist
-          shasum -a 256 dist/PanoViewer-macOS.dmg dist/PanoViewer-Template.html shortcuts/PanoViewer.shortcut | sed 's#dist/##; s#shortcuts/##' >> dist/SHA256SUMS.txt
-          gh release upload '${{ github.ref_name }}' dist/PanoViewer-macOS.dmg dist/PanoViewer-Template.html shortcuts/PanoViewer.shortcut dist/SHA256SUMS.txt --clobber
+          shasum -a 256 dist/PanoViewer-macOS.dmg | sed 's#dist/##' >> dist/SHA256SUMS.txt
+          gh release upload '${{ github.ref_name }}' dist/PanoViewer-macOS.dmg dist/SHA256SUMS.txt --clobber
 
   windows:
     runs-on: windows-latest
