@@ -1,8 +1,20 @@
 # PanoViewer
 
+[English](README.en.md) | 简体中文
+
 免费开源、完全离线的 360° 全景照片查看器。无需上传照片，打开即可从展开、小行星、水晶球和隧道四种视角浏览等距圆柱投影全景图。
 
 > 当前版本：**1.0.0** · 作者：**梁晓辉 Liang Xiaohui** · [MIT License](LICENSE)
+
+![PanoViewer 小行星视图](assets/screenshots/tiny-planet.png)
+
+<p align="center">
+  <img src="assets/screenshots/unfold.png" width="32%" alt="展开视图">
+  <img src="assets/screenshots/crystal-globe.png" width="32%" alt="水晶球视图">
+  <img src="assets/screenshots/tunnel.png" width="32%" alt="隧道视图">
+</p>
+
+<p align="center"><sub>示例全景照片由梁晓辉拍摄于新疆。</sub></p>
 
 ## 下载与使用
 
@@ -13,6 +25,8 @@
 3. 也可将照片拖到 EXE 上，或在“打开方式”中选择 PanoViewer。
 
 Windows 首次打开从 GitHub 下载的未签名程序时，SmartScreen 可能显示提示。请确认文件来自本项目的 GitHub Releases。
+
+> v1.0.0 的 Windows 程序尚未进行商业代码签名。每个 Release 都提供 `SHA256SUMS.txt` 供完整性校验。
 
 ### macOS / Linux / 其他平台
 
@@ -56,7 +70,7 @@ powershell -ExecutionPolicy Bypass -File scripts\build_windows.ps1
 
 ## 贡献
 
-欢迎提交 Issue 和 Pull Request。报告问题时，请尽量附上操作系统与浏览器版本、可复现步骤、图片格式与尺寸，以及屏幕截图或错误信息。
+欢迎提交 Issue 和 Pull Request。完整流程见 [CONTRIBUTING.md](CONTRIBUTING.md)；安全问题请按 [SECURITY.md](SECURITY.md) 私下报告。报告普通问题时，请尽量附上操作系统与浏览器版本、可复现步骤、图片格式与尺寸，以及屏幕截图或错误信息。
 
 在提交代码前，请至少运行一次构建，并用 `tools/test_pano.png` 检查四种视角。
 

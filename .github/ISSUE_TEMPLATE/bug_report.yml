@@ -1,0 +1,51 @@
+name: Bug report
+description: Report a reproducible problem in PanoViewer
+title: "[Bug] "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for helping improve PanoViewer. Do not attach private photos or report security vulnerabilities here.
+  - type: input
+    id: version
+    attributes:
+      label: PanoViewer version
+      placeholder: "1.0.0"
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Operating system and browser
+      placeholder: "Windows 11 24H2, Edge 140"
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Tell us exactly how to reproduce the problem.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: input
+    id: image
+    attributes:
+      label: Panorama format and dimensions
+      placeholder: "JPG, 8192 x 4096"
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Add non-sensitive screenshots or error messages if useful.

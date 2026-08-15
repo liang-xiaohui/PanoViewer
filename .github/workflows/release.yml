@@ -28,6 +28,41 @@ jobs:
         shell: pwsh
         run: ./scripts/build_windows.ps1
 
+      - name: Check signing configuration
+        id: signing
+        shell: pwsh
+        env:
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+        run: |
+          $available = -not [String]::IsNullOrWhiteSpace($env:WINDOWS_CERTIFICATE)
+          "available=$($available.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
+
+      - name: Sign Windows executable
+        if: ${{ steps.signing.outputs.available == 'true' }}
+        shell: pwsh
+        env:
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: |
+          $certificatePath = Join-Path $env:RUNNER_TEMP 'PanoViewer-signing.pfx'
+          [IO.File]::WriteAllBytes($certificatePath, [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE))
+          $password = ConvertTo-SecureString $env:WINDOWS_CERTIFICATE_PASSWORD -AsPlainText -Force
+          $certificate = Import-PfxCertificate -FilePath $certificatePath -CertStoreLocation Cert:\CurrentUser\My -Password $password
+          $signTool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin" -Filter signtool.exe -Recurse |
+            Where-Object FullName -Match '\\x64\\signtool\.exe$' |
+            Sort-Object FullName -Descending |
+            Select-Object -First 1 -ExpandProperty FullName
+          if (-not $signTool) { throw 'signtool.exe was not found.' }
+          & $signTool sign /sha1 $certificate.Thumbprint /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 dist/PanoViewer.exe
+          if ($LASTEXITCODE -ne 0) { throw 'Authenticode signing failed.' }
+          $signature = Get-AuthenticodeSignature dist/PanoViewer.exe
+          if ($signature.Status -ne 'Valid') { throw "Invalid Authenticode signature: $($signature.Status)" }
+
+      - name: Note unsigned build
+        if: ${{ steps.signing.outputs.available != 'true' }}
+        shell: pwsh
+        run: Write-Host 'WINDOWS_CERTIFICATE is not configured; publishing an unsigned executable.'
+
       - name: Prepare release files
         shell: pwsh
         run: |
