@@ -5,7 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <link rel="icon" type="image/png" href="__APP_ICON__">
 <link rel="apple-touch-icon" href="__APP_ICON__">
-<title>360° 全景查看器</title>
+<meta name="description" content="PanoViewer — 免费开源、完全离线的 360° 全景照片查看器">
+<title>PanoViewer __APP_VERSION__ — 360° 全景查看器</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { width: 100%; height: 100%; overflow: hidden; background: #101014; font-family: -apple-system, "PingFang SC", sans-serif; }
@@ -23,6 +24,9 @@
   #dropzone h1 { font-size: 22px; font-weight: 600; color: #eee; }
   #dropzone p { font-size: 14px; color: #888; }
   #dropzone .hint { font-size: 12px; color: #666; margin-top: 8px; text-align: center; padding: 0 24px; }
+  #dropzone .about { font-size: 12px; color: #777; }
+  #dropzone .about a { color: #aaa; text-decoration: none; }
+  #dropzone .about a:hover { color: #fff; text-decoration: underline; }
   #fileInput { display: none; }
   #modebar {
     position: absolute; bottom: max(16px, env(safe-area-inset-bottom)); left: 50%;
@@ -70,6 +74,7 @@
   <h1>360° 全景查看器</h1>
   <p>点击选择全景照片（iPhone 点击此处选图）</p>
   <p class="hint">展开 · 小行星 · 水晶球 · 隧道 · 截图 · 支持等距圆柱投影全景图</p>
+  <p class="about">PanoViewer v__APP_VERSION__ · 梁晓辉 Liang Xiaohui · <a href="https://github.com/liang-xiaohui/PanoViewer" target="_blank" rel="noopener">MIT 开源</a></p>
 </div>
 <input type="file" id="fileInput" accept="image/*">
 

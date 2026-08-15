@@ -1,0 +1,45 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Build release files
+        shell: pwsh
+        run: |
+          ./scripts/build_windows.ps1
+          Copy-Item dist/PanoViewer.exe dist/PanoViewer-Windows-x64.exe
+          Copy-Item 'dist/全景查看器-独立版.html' dist/PanoViewer-Standalone.html
+          $files = @('dist/PanoViewer-Windows-x64.exe', 'dist/PanoViewer-Standalone.html')
+          $lines = foreach ($file in $files) {
+            $hash = (Get-FileHash -Algorithm SHA256 $file).Hash.ToLowerInvariant()
+            "$hash  $([IO.Path]::GetFileName($file))"
+          }
+          $lines | Set-Content -Encoding ascii dist/SHA256SUMS.txt
+
+      - name: Create GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create '${{ github.ref_name }}' `
+            dist/PanoViewer-Windows-x64.exe `
+            dist/PanoViewer-Standalone.html `
+            dist/SHA256SUMS.txt `
+            --title "PanoViewer ${{ github.ref_name }}" `
+            --generate-notes `
+            --verify-tag

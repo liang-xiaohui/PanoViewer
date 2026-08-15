@@ -3,6 +3,15 @@ using System.Diagnostics;
 using System.IO;
 using System.Text;
 using System.Windows.Forms;
+using System.Reflection;
+
+[assembly: AssemblyTitle("PanoViewer")]
+[assembly: AssemblyDescription("Offline 360° panorama viewer")]
+[assembly: AssemblyCompany("Liang Xiaohui")]
+[assembly: AssemblyProduct("PanoViewer")]
+[assembly: AssemblyCopyright("Copyright © 2026 Liang Xiaohui (梁晓辉)")]
+[assembly: AssemblyVersion("__APP_VERSION__.0")]
+[assembly: AssemblyFileVersion("__APP_VERSION__.0")]
 
 internal static class PanoViewerApp
 {
@@ -31,7 +40,7 @@ internal static class PanoViewerApp
         }
         catch (Exception ex)
         {
-            MessageBox.Show(ex.Message, "PanoViewer", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            MessageBox.Show(ex.Message, "PanoViewer __APP_VERSION__", MessageBoxButtons.OK, MessageBoxIcon.Error);
             return 1;
         }
     }

@@ -22,6 +22,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = os.path.join(ROOT, "src", "viewer_source.html")
 VENDOR = os.path.join(ROOT, "vendor", "three.min.js")
 ICON = os.path.join(ROOT, "assets", "PanoViewer-favicon.png")
+VERSION_FILE = os.path.join(ROOT, "VERSION")
 DIST = os.path.join(ROOT, "dist")
 
 STANDALONE_NAME = "全景查看器-独立版.html"
@@ -41,12 +42,16 @@ def build() -> tuple[str, str]:
     src = open(SRC, encoding="utf-8").read()
     three = open(VENDOR, encoding="utf-8").read()
     icon = base64.b64encode(open(ICON, "rb").read()).decode()
+    version = open(VERSION_FILE, encoding="utf-8").read().strip()
     out = src.replace("__THREE_JS__", three)
     out = out.replace("__APP_ICON__", f"data:image/png;base64,{icon}")
+    out = out.replace("__APP_VERSION__", version)
     if "__THREE_JS__" in out:
         sys.exit("错误：__THREE_JS__ 替换失败")
     if "__APP_ICON__" in out:
         sys.exit("错误：__APP_ICON__ 替换失败")
+    if "__APP_VERSION__" in out:
+        sys.exit("错误：__APP_VERSION__ 替换失败")
     standalone = out.replace("__EMBEDDED_IMAGE__", "")
     if "__EMBEDDED_IMAGE__" in standalone:
         sys.exit("错误：__EMBEDDED_IMAGE__ 替换失败")

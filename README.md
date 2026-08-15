@@ -1,200 +1,71 @@
-# PanoViewer — 离线单文件 360° 全景查看器
+# PanoViewer
 
-一个零前端依赖、双击即用的跨平台 360° 全景照片查看器（Windows / macOS / Linux / iPhone），模仿大疆 App 的四种观赏视角：**展开 / 小行星 / 水晶球 / 隧道**，外加截图导出。
+免费开源、完全离线的 360° 全景照片查看器。无需上传照片，打开即可从展开、小行星、水晶球和隧道四种视角浏览等距圆柱投影全景图。
 
-- 输入：等距圆柱投影（equirectangular）全景图，如 DJI 无人机拍摄的 360° 照片
-- 输出：单个 HTML 文件，three.js 已内联，**完全离线**可用
-- 渲染：WebGL（three.js r128 非模块版），Safari / Chrome 均可
+> 当前版本：**1.0.0** · 作者：**梁晓辉 Liang Xiaohui** · [MIT License](LICENSE)
 
-## 功能
-
-| 模式 | 投影本质 | 视觉特征 | 交互 |
-|---|---|---|---|
-| 展开 | 球内透视 | 正常第一人称环视 | 拖动环视，滚轮/捏合变焦 |
-| 小行星 | 极射赤面投影（视线锁天底） | 地面卷成星球充满画面，地平线成圆 | 水平拖动自转，滚轮/捏合缩放 |
-| 隧道 | 极射赤面投影（视线锁天顶） | 天空卷进中心成隧道口 | 同上 |
-| 水晶球 | 从球体**外部**正交观看 | 整张全景缩成一枚可拨转的悬浮球体 | 拖动拨转，滚轮/捏合拉近拉远 |
-| 📸 截图 | — | 抓取当前画面 | iPhone 长按保存；Mac 点按钮下载 PNG |
-
-模式切换带补间动画（easeInOutCubic），加载照片后自动播放「小行星 → 展开」开场动画。
-
-## 快速开始
+## 下载与使用
 
 ### Windows
 
-需要 Python 3（仅用于构建和启动；生成的 HTML 本身不需要 Python）：
+1. 在 [Releases](https://github.com/liang-xiaohui/PanoViewer/releases/latest) 下载 `PanoViewer-Windows-x64.exe`。
+2. 双击运行，选择一张 360° 全景照片。
+3. 也可将照片拖到 EXE 上，或在“打开方式”中选择 PanoViewer。
 
-```powershell
-py -3 scripts\build.py
-scripts\pano.cmd "D:\照片\全景图.jpg"
-```
+Windows 首次打开从 GitHub 下载的未签名程序时，SmartScreen 可能显示提示。请确认文件来自本项目的 GitHub Releases。
 
-不传图片路径时会弹出文件选择框：
+### macOS / Linux / 其他平台
 
-```powershell
-scripts\pano.cmd
-```
+从 Releases 下载 `PanoViewer-Standalone.html`，用支持 WebGL 的现代浏览器打开，再点击或拖入照片。该文件已内置所需程序，不需要网络或安装依赖。
 
-也可以直接双击 `dist/全景查看器-独立版.html`，然后点击或拖入全景图片。推荐使用最新版 Edge、Chrome 或 Firefox，并确保浏览器已启用 WebGL。
-
-生成独立 EXE 并加入当前用户的图片“打开方式”（无需管理员权限）：
-
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts\build_windows.ps1 -Install
-```
-
-生成的程序位于 `dist/PanoViewer.exe`，安装副本位于 `%LOCALAPPDATA%\Programs\PanoViewer\PanoViewer.exe`。卸载注册信息：
-
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts\build_windows.ps1 -Uninstall
-```
-
-### macOS / Linux
-
-统一的跨平台入口：
+macOS 和 Linux 用户也可从源码使用 Python 启动器：
 
 ```bash
 python3 scripts/build.py
 python3 scripts/pano.py /path/to/panorama.jpg
 ```
 
-省略图片路径时会弹出文件选择框（Linux 需要发行版提供 tkinter）。macOS 还可以继续使用下面原有的拖放 App 安装方式。
+## 主要功能
 
-### macOS 拖放 App
+- 展开、小行星、水晶球和隧道四种视角
+- 鼠标、触摸和滚轮/捏合操作
+- 小行星与隧道的自由俯仰和投影锁定
+- 当前画面 PNG 截图
+- JPG、JPEG、PNG、WebP 和 GIF 图片
+- 单文件、无服务器、无云端依赖
 
-```bash
-git clone <repo> && cd PanoViewer
-./scripts/install.sh        # 构建并安装 Mac 端入口（见下）
+PanoViewer 面向 2:1 等距圆柱投影（equirectangular）全景照片，例如 360 相机、无人机或全景拼接软件的输出。
+
+## 隐私
+
+PanoViewer 在本地读取和渲染照片，不会上传图片，不收集使用数据，也不包含分析或广告代码。Windows 程序会在系统临时目录生成一个用于浏览器显示的 HTML 文件。
+
+## 从源码构建
+
+需要 Python 3。Windows EXE 另需 Windows 自带的 .NET Framework C# 编译器。
+
+```powershell
+# 通用离线 HTML
+py -3 scripts\build.py
+
+# Windows EXE
+powershell -ExecutionPolicy Bypass -File scripts\build_windows.ps1
 ```
 
-安装后三种打开方式：
+产物位于 `dist/`。更多实现、测试和发布说明见 [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)。
 
-1. **拖放**：把全景图拖到 Dock 或 `~/Applications/360°全景查看.app` 图标
-2. **右键**：Finder 中右键图片 → 打开方式 → 360°全景查看
-3. **点选**：双击 App → 选择图片
+## 贡献
 
-也可以不开 App，直接用浏览器打开 `dist/全景查看器-独立版.html`，点选或拖入图片。
+欢迎提交 Issue 和 Pull Request。报告问题时，请尽量附上操作系统与浏览器版本、可复现步骤、图片格式与尺寸，以及屏幕截图或错误信息。
 
-### iPhone
+在提交代码前，请至少运行一次构建，并用 `tools/test_pano.png` 检查四种视角。
 
-`install.sh` 会把独立版同步到 iCloud Drive（`全景查看器-独立版.html`）。iPhone 上建一条快捷指令：
+## 许可证与第三方代码
 
-```
-获取文件（iCloud Drive/全景查看器-独立版.html）→ 快速查看
-```
+PanoViewer 由梁晓辉（Liang Xiaohui）以 [MIT License](LICENSE) 开源。
 
-快速查看（Quick Look）可渲染 HTML + JS，即可在手机上用全部四种视角。
+`vendor/three.min.js` 是 three.js r128，同样使用 MIT License，版权归 mrdoob 及 three.js 贡献者所有。
 
-## 构建
+---
 
-```bash
-python3 scripts/build.py                     # 构建 → dist/
-python3 scripts/build.py --install           # 构建并部署到系统位置
-python3 scripts/build.py --embed 照片.jpg     # 额外产出内嵌图片的测试版
-```
-
-构建即两步字符串替换：
-
-- `__THREE_JS__` ← `vendor/three.min.js`（three.js r128，MIT）
-- `__EMBEDDED_IMAGE__` ← 独立版置空；`template.html` 保留标记，由 `pano.sh` 在运行时注入 `data:<mime>;base64,...`
-
-## 目录结构
-
-```
-PanoViewer/
-├── src/viewer_source.html     # ★ 查看器源码（唯一需要编辑的文件，含两个占位标记）
-├── vendor/three.min.js        # three.js r128 非模块版（全局 THREE）
-├── scripts/
-│   ├── build.py               # 组装构建（src + vendor → dist/）
-│   ├── install.sh             # 一键安装：构建 + 部署模板 + osacompile 拖放 App + iCloud
-│   ├── pano.sh                # 拖放 App 的注入脚本：base64 图片 → 临时 HTML → open
-│   └── pano_applet.applescript# 拖放 App 的 AppleScript 源（on open / on run）
-├── tools/
-│   └── make_test_pano.py      # 生成带地标的测试全景图（经纬网格/方位标注/拼缝标记）
-└── dist/                      # 构建产物（不入库）
-```
-
-## 架构与关键设计
-
-三种渲染器同场景叠加，按模式切换透明度补间：
-
-| 渲染器 | 用途 | 实现要点 |
-|---|---|---|
-| 内视球体 | 展开模式主画面；极射模式的背景天空 | `SphereGeometry(500,128,64)` + `scale(-1,1,1)` 从内部观看；材质透明度可补间（水晶球模式下淡出成暗背景） |
-| 极射圆盘 | 小行星 / 隧道 | 200×360 极网格，顶点着色器直接输出 NDC 坐标（不经过相机矩阵）；`r = f·2tan(θ/2)`，`θ = θmax·ρ^2.5`（极点加密）；边缘 smoothstep 渐隐 |
-| 外视球体 | 水晶球 | 正常 `SphereGeometry(1)`（不翻转），位置每帧跟随相机视线方向 `_target × dist` |
-
-### 拼缝正确性（本项目最深的坑，改动前务必阅读）
-
-等距圆柱图左右边缘必须无缝贴合。所有方案都栽在 **u 坐标回绕**上，最终结论：
-
-1. **极射圆盘的 u/v 必须用 φ/θ 的解析线性式**（见 `POLES` 表）：
-   - 天底（小行星）：`u = (φ-π)/2π`，`v = θ/π`
-   - 天顶（隧道）：`u = (π-φ)/2π`，`v = 1-θ/π`
-   - **绝不在着色器里用 `atan`/`asin` 反算**——`atan` 自身回绕 [0,1)，分支切割线落在网格内部时会产生 1° 宽的脏楔形带（整图反向压缩显示）。线性式下首末列顶点重合但无三角形跨越，`RepeatWrapping` 自然回绕，处处连续。
-2. **纹理必须归一到 2 的幂尺寸**（`makePOTCanvas`）——WebGL1 下 mipmap + 无缝 RepeatWrapping 的硬性要求。
-3. `texture.wrapS = RepeatWrapping`、`anisotropy` 拉满。
-4. 全屏片元着色器方案（逐像素反算经纬度）被验证不可行：接缝处 mipmap 导数不连续 → 模糊竖线。**不要走回头路**。
-
-### 为什么水晶球单独用一个球体
-
-水晶球（博客园原理：投影面切于极点、视点无穷远 ≈ 从外部正交看球）**不是**「缩小的小行星」。用极射投影缩小只会得到一个缩小的圆盘，没有球体的立体透视感。直接放一个真实 3D 球体从外面看，就是正确的地球仪效果，且拖转交互天然正确。
-
-### 拖放 App 链路
-
-```
-拖图到 App → AppleScript(on open) → pano.sh <路径>
-  → base64 编码 → 逐行替换 template.html 的 __EMBEDDED_IMAGE__
-  → 写临时 HTML → open（默认浏览器）
-```
-
-选 zsh 逐行替换而不是 sed，是因为 base64 单行超长会触发 BSD sed 的行长度限制。
-
-## 调试 / 验证流程
-
-改完渲染代码后**不要直接交付**，用测试图 + 无头浏览器截图验证：
-
-```bash
-python3 tools/make_test_pano.py          # 生成地标测试图（方位文字可查镜像，边缘色线可查拼缝）
-python3 scripts/build.py --embed tools/test_pano.png
-cd dist && python3 -m http.server 8765   # file:// 协议会被部分工具拦截，走 http
-# playwright-cli（或任意无头浏览器）打开 http://localhost:8765/测试-内嵌图-test_pano.png.html
-# 依次点击四个模式按钮，等 ~1.2s（补间完成）后截图，肉眼检查：
-#   - 文字方向正确（不镜像）、方位顺序正确
-#   - 拼缝处无脏楔形/模糊线（洋红-白线应无缝贴合或仅细线）
-#   - 小行星/隧道有明显的鱼眼卷曲，水晶球是悬浮球体
-```
-
-业务 JS 语法检查（不含 three.js）：
-
-```bash
-python3 -c "src=open('src/viewer_source.html').read();open('/tmp/check.js','w').write(src.split('<script>')[2].split('</script>')[0])"
-node --check /tmp/check.js
-```
-
-## 踩坑记录（前车之鉴）
-
-| 尝试 | 结果 | 原因 |
-|---|---|---|
-| Pannellum 2.5.6 + blob/data URL | "could not be accessed" | 同源检查判 blob:/data: 为跨域，XHR 抓取被拦 |
-| three.js 球体贴图 | ✅ 拼缝可靠 | 几何连续，沿用至今 |
-| 全屏片元着色器逐像素反算 | ❌ 接缝模糊竖线 | u 在接缝跳变，mipmap 导数误判 |
-| 极射圆盘 + atan + ±1 整数偏移 | ❌ 1° 脏楔形 | atan 自身回绕，偏移符号两极性都错 |
-| 极射圆盘 + 解析线性 u/v | ✅ 当前方案 | 数学上杜绝回绕不连续 |
-| 极点柔化（smoothstep 混合平均色） | ❌ 死板色斑 | 单色平均本身就是错的 |
-| 手写现代版 Automator workflow | ❌ 判"已损坏" | 二进制 plist 结构复杂，手写易错 |
-| `shortcuts import` CLI | ❌ 无此子命令 | 本机版本不支持，改用 osacompile |
-| `automator` CLI 运行 workflow | ❌ 沙盒限制 | Automator.framework 禁止沙盒调用，只能实测 |
-| osacompile 编译拖放 App | ✅ 当前方案 | 照片拖 Dock / Finder 右键 / 双击选图三入口 |
-
-## 后续可改进
-
-- [ ] 小行星/隧道模式支持连续变焦到展开视角（投影参数 s 从 1 → 0 补间，需解决中间态的拼缝问题）
-- [ ] 视频全景（.mp4 输入）
-- [ ] 水晶球背景改为实时模糊全景而非纯色
-- [ ] 多图浏览（拖入多张时左右切换）
-
-## 许可
-
-- 本项目代码：随意使用
-- three.js（vendor/）：MIT License © 2010-2024 mrdoob / three.js authors
+PanoViewer is a free, open-source, fully offline 360° panorama viewer for Windows and modern WebGL browsers. Download the latest build from [GitHub Releases](https://github.com/liang-xiaohui/PanoViewer/releases/latest). Photos stay on your device.

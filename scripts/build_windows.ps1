@@ -12,10 +12,26 @@ $iconBuilder = Join-Path $PSScriptRoot 'windows\make_icon.py'
 $template = Join-Path $distDir 'template.html'
 $output = Join-Path $distDir 'PanoViewer.exe'
 $generatedSource = Join-Path $distDir 'PanoViewer.generated.cs'
+$version = [IO.File]::ReadAllText((Join-Path $projectRoot 'VERSION')).Trim()
 $installDir = Join-Path $env:LOCALAPPDATA 'Programs\PanoViewer'
 $installedExe = Join-Path $installDir 'PanoViewer.exe'
 $installedIcon = Join-Path $installDir 'PanoViewer.ico'
 $extensions = '.jpg', '.jpeg', '.png', '.webp', '.gif'
+
+function Invoke-Python {
+    param([Parameter(ValueFromRemainingArguments = $true)][string[]]$Arguments)
+    $python = Get-Command python.exe -ErrorAction SilentlyContinue
+    if ($python) {
+        & $python.Source @Arguments
+        return
+    }
+    $launcher = Get-Command py.exe -ErrorAction SilentlyContinue
+    if ($launcher) {
+        & $launcher.Source -3 @Arguments
+        return
+    }
+    throw 'Python 3 was not found. Install Python 3 and add it to PATH.'
+}
 
 function Remove-Registration {
     Remove-Item -LiteralPath 'HKCU:\Software\Classes\Applications\PanoViewer.exe' -Recurse -Force -ErrorAction SilentlyContinue
@@ -34,14 +50,14 @@ if ($Uninstall) {
     exit 0
 }
 
-& py -3 (Join-Path $PSScriptRoot 'build.py')
+Invoke-Python (Join-Path $PSScriptRoot 'build.py')
 if ($LASTEXITCODE -ne 0) { throw 'HTML build failed.' }
-& py -3 $iconBuilder
+Invoke-Python $iconBuilder
 if ($LASTEXITCODE -ne 0) { throw 'Icon build failed.' }
 
 if (Test-Path -LiteralPath $output) { Remove-Item -LiteralPath $output -Force }
 $templateBase64 = [Convert]::ToBase64String([IO.File]::ReadAllBytes($template))
-$sourceText = [IO.File]::ReadAllText($source).Replace('__TEMPLATE_BASE64__', $templateBase64)
+$sourceText = [IO.File]::ReadAllText($source).Replace('__TEMPLATE_BASE64__', $templateBase64).Replace('__APP_VERSION__', $version)
 [IO.File]::WriteAllText($generatedSource, $sourceText, (New-Object Text.UTF8Encoding($true)))
 $compiler = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'
 if (-not (Test-Path -LiteralPath $compiler)) {
