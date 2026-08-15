@@ -18,10 +18,16 @@ jobs:
         with:
           python-version: "3.x"
 
-      - name: Build release files
+      - name: Build standalone HTML
+        run: python scripts/build.py
+
+      - name: Build Windows executable
+        shell: pwsh
+        run: ./scripts/build_windows.ps1
+
+      - name: Prepare release files
         shell: pwsh
         run: |
-          ./scripts/build_windows.ps1
           Copy-Item dist/PanoViewer.exe dist/PanoViewer-Windows-x64.exe
           Copy-Item 'dist/全景查看器-独立版.html' dist/PanoViewer-Standalone.html
           $files = @('dist/PanoViewer-Windows-x64.exe', 'dist/PanoViewer-Standalone.html')
