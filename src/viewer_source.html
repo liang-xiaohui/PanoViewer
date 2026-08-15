@@ -279,7 +279,11 @@ function startViewer(img) {
   dropzone.style.display = 'none';
   document.getElementById('loading').style.display = 'block';
 
-  renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+  renderer = new THREE.WebGLRenderer({
+    antialias: true,
+    alpha: true,
+    preserveDrawingBuffer: true,
+  });
   renderer.setPixelRatio(window.devicePixelRatio);
   renderer.setSize(wrap.clientWidth, wrap.clientHeight);
   wrap.appendChild(renderer.domElement);
@@ -625,8 +629,15 @@ function applyZoom(delta) {
 // ---------- 截图 ----------
 
 function snapshot() {
+  const transparentBackground = mode === 'crystal';
+  const previousBackground = scene.background;
+  if (transparentBackground) scene.background = null;
   renderer.render(scene, camera);
   document.getElementById('shotImg').src = renderer.domElement.toDataURL('image/png');
+  if (transparentBackground) {
+    scene.background = previousBackground;
+    renderer.render(scene, camera);
+  }
   document.getElementById('shotOverlay').style.display = 'flex';
 }
 

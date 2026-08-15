@@ -4,7 +4,7 @@
 
 免费开源、完全离线的 360° 全景照片查看器。无需上传照片，打开即可从展开、小行星、水晶球和隧道四种视角浏览等距圆柱投影全景图。
 
-> 当前版本：**1.0.0** · 作者：**梁晓辉 Liang Xiaohui** · [MIT License](LICENSE)
+> 当前版本：**1.0.1** · 作者：**梁晓辉 Liang Xiaohui** · [MIT License](LICENSE)
 
 ![PanoViewer 小行星视图](assets/screenshots/tiny-planet.png)
 
@@ -28,7 +28,13 @@ Windows 首次打开从 GitHub 下载的未签名程序时，SmartScreen 可能�
 
 > v1.0.0 的 Windows 程序尚未进行商业代码签名。每个 Release 都提供 `SHA256SUMS.txt` 供完整性校验。
 
-### macOS / Linux / 其他平台
+### macOS
+
+1. 从 [Releases](https://github.com/liang-xiaohui/PanoViewer/releases/latest) 下载 `PanoViewer-macOS.dmg`。
+2. 打开 DMG，将 PanoViewer 拖入“应用程序”，然后双击运行或把全景照片拖到 App 图标上。
+3. 当前 macOS App 尚未经过 Apple 公证；首次运行如被拦截，请先在 Finder 中右键 App 并选择“打开”。如果仍无法打开，请前往“系统设置 → 隐私与安全性”，找到 PanoViewer 的安全提示并选择“仍要打开”。
+
+### Linux / 其他平台
 
 从 Releases 下载 `PanoViewer-Standalone.html`，用支持 WebGL 的现代浏览器打开，再点击或拖入照片。该文件已内置所需程序，不需要网络或安装依赖。
 

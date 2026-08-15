@@ -12,6 +12,23 @@ env:
   PYTHONUTF8: "1"
 
 jobs:
+  macos:
+    needs: windows
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build macOS disk image
+        run: ./scripts/build_macos.sh
+
+      - name: Upload macOS release asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download '${{ github.ref_name }}' --pattern SHA256SUMS.txt --dir dist
+          shasum -a 256 dist/PanoViewer-macOS.dmg | sed 's#dist/##' >> dist/SHA256SUMS.txt
+          gh release upload '${{ github.ref_name }}' dist/PanoViewer-macOS.dmg dist/SHA256SUMS.txt --clobber
+
   windows:
     runs-on: windows-latest
     steps:

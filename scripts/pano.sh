@@ -2,8 +2,14 @@
 # 360°全景查看 - 图片注入查看器并打开浏览器
 # 用法: pano.sh <图片路径>...  或从 stdin 读路径
 
-TEMPLATE="$HOME/Library/Application Support/PanoViewer/template.html"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+if [[ -f "$SCRIPT_DIR/template.html" ]]; then
+  TEMPLATE="$SCRIPT_DIR/template.html"
+else
+  TEMPLATE="$HOME/Library/Application Support/PanoViewer/template.html"
+fi
 LOG="$HOME/Library/Application Support/PanoViewer/last_run.log"
+mkdir -p "${LOG:h}"
 exec 2>"$LOG"
 
 process() {

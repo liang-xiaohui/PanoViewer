@@ -25,6 +25,10 @@ echo "OK  $APP_SUPPORT"
 # 3. 编译拖放 App
 osacompile -o "$APP_OUT" "$APPLET_SRC"
 cp "$ROOT/assets/PanoViewer.icns" "$APP_OUT/Contents/Resources/applet.icns"
+cp "$ROOT/scripts/pano.sh" "$APP_OUT/Contents/Resources/pano.sh"
+cp "$ROOT/dist/template.html" "$APP_OUT/Contents/Resources/template.html"
+chmod +x "$APP_OUT/Contents/Resources/pano.sh"
+codesign --force --deep --sign - "$APP_OUT"
 touch "$APP_OUT"
 echo "OK  $APP_OUT"
 

@@ -4,7 +4,7 @@ English | [简体中文](README.md)
 
 A free, open-source, fully offline viewer for 360° panorama photos. PanoViewer displays equirectangular panoramas in four interactive modes: unfolded, tiny planet, crystal globe, and tunnel. Your photos stay on your device.
 
-> Current version: **1.0.0** · Author: **Liang Xiaohui (梁晓辉)** · [MIT License](LICENSE)
+> Current version: **1.0.1** · Author: **Liang Xiaohui (梁晓辉)** · [MIT License](LICENSE)
 
 ![PanoViewer tiny-planet mode](assets/screenshots/tiny-planet.png)
 
@@ -26,7 +26,13 @@ A free, open-source, fully offline viewer for 360° panorama photos. PanoViewer 
 
 The v1.0.0 executable is not commercially code-signed, so Windows SmartScreen may show a warning. Confirm that the file came from this repository's Releases page. Every release includes `SHA256SUMS.txt` for integrity verification.
 
-### macOS, Linux, and other platforms
+### macOS
+
+1. Download `PanoViewer-macOS.dmg` from [Releases](https://github.com/liang-xiaohui/PanoViewer/releases/latest).
+2. Open the DMG, drag PanoViewer to Applications, then launch it or drop a panorama onto its icon.
+3. The macOS app is not yet notarized by Apple. If macOS blocks the first launch, Control-click the app in Finder and choose Open. If it is still blocked, go to System Settings → Privacy & Security, find the PanoViewer security notice, and choose Open Anyway.
+
+### Linux and other platforms
 
 Download `PanoViewer-Standalone.html` from the latest release, open it in a modern WebGL browser, then click or drag in a photo. The file includes everything it needs and works without a server, installation, or internet connection.
 
