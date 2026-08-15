@@ -52,8 +52,10 @@ if ($Uninstall) {
 
 Invoke-Python (Join-Path $PSScriptRoot 'build.py')
 if ($LASTEXITCODE -ne 0) { throw 'HTML build failed.' }
-Invoke-Python $iconBuilder
-if ($LASTEXITCODE -ne 0) { throw 'Icon build failed.' }
+if (-not (Test-Path -LiteralPath $icon)) {
+    Invoke-Python $iconBuilder
+    if ($LASTEXITCODE -ne 0) { throw 'Icon build failed.' }
+}
 
 if (Test-Path -LiteralPath $output) { Remove-Item -LiteralPath $output -Force }
 $templateBase64 = [Convert]::ToBase64String([IO.File]::ReadAllBytes($template))
