@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="PanoViewer 隐私政策：照片仅在设备本地处理，不上传、不收集个人信息。">
+  <title>PanoViewer 隐私政策</title>
+  <link rel="icon" type="image/png" href="assets/panoviewer-icon.png">
+  <style>
+    :root {
+      color-scheme: light;
+      --background: #f7f9fb;
+      --surface: #ffffff;
+      --text: #18202c;
+      --muted: #5d6878;
+      --border: #dce2e9;
+      --accent: #087ea4;
+      --accent-dark: #065e7a;
+      --header: #101827;
+      --header-text: #f8fafc;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      background: var(--background);
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      color: var(--text);
+      background: var(--background);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "HarmonyOS Sans SC",
+        "PingFang SC", "Microsoft YaHei", sans-serif;
+      font-size: 16px;
+      line-height: 1.75;
+      letter-spacing: 0;
+    }
+
+    a {
+      color: var(--accent-dark);
+      text-underline-offset: 3px;
+    }
+
+    a:hover {
+      color: var(--accent);
+    }
+
+    .site-header {
+      color: var(--header-text);
+      background: var(--header);
+      border-bottom: 4px solid var(--accent);
+    }
+
+    .header-inner,
+    main,
+    footer {
+      width: min(100% - 40px, 820px);
+      margin-inline: auto;
+    }
+
+    .header-inner {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      min-height: 116px;
+      padding-block: 24px;
+    }
+
+    .app-icon {
+      width: 64px;
+      height: 64px;
+      flex: 0 0 64px;
+    }
+
+    h1,
+    h2 {
+      line-height: 1.35;
+      letter-spacing: 0;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 28px;
+      font-weight: 700;
+    }
+
+    .effective-date {
+      margin: 4px 0 0;
+      color: #cbd5e1;
+      font-size: 14px;
+    }
+
+    main {
+      padding-block: 38px 48px;
+    }
+
+    .summary {
+      margin: 0 0 36px;
+      padding: 18px 20px;
+      background: var(--surface);
+      border-left: 4px solid var(--accent);
+      box-shadow: 0 1px 2px rgb(16 24 39 / 8%);
+    }
+
+    section {
+      padding-block: 8px 18px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    section:last-child {
+      border-bottom: 0;
+    }
+
+    h2 {
+      margin: 20px 0 8px;
+      font-size: 20px;
+      font-weight: 700;
+    }
+
+    p {
+      margin: 8px 0 14px;
+    }
+
+    ul {
+      margin: 8px 0 14px;
+      padding-left: 24px;
+    }
+
+    li + li {
+      margin-top: 6px;
+    }
+
+    footer {
+      padding-block: 22px 36px;
+      color: var(--muted);
+      border-top: 1px solid var(--border);
+      font-size: 14px;
+    }
+
+    footer p {
+      margin: 0;
+    }
+
+    @media (max-width: 560px) {
+      .header-inner,
+      main,
+      footer {
+        width: min(100% - 28px, 820px);
+      }
+
+      .header-inner {
+        min-height: 100px;
+      }
+
+      .app-icon {
+        width: 56px;
+        height: 56px;
+        flex-basis: 56px;
+      }
+
+      h1 {
+        font-size: 24px;
+      }
+
+      main {
+        padding-top: 28px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <div class="header-inner">
+      <img class="app-icon" src="assets/panoviewer-icon.png" alt="PanoViewer 应用图标" width="64" height="64">
+      <div>
+        <h1>PanoViewer 隐私政策</h1>
+        <p class="effective-date">生效日期：2026 年 8 月 16 日</p>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <p class="summary">
+      PanoViewer 是由梁晓辉（以下简称“我们”）提供的离线 360° 全景照片查看器。
+      应用不会收集、上传、存储或共享您的个人信息；您主动选择的照片仅在设备本地处理。
+    </p>
+
+    <section aria-labelledby="scope">
+      <h2 id="scope">1. 适用范围</h2>
+      <p>
+        本隐私政策适用于 PanoViewer HarmonyOS PC 应用，说明应用在打开全景照片、切换浏览视角和保存截图时如何处理相关数据。
+        使用本应用前，请您阅读并了解本政策。
+      </p>
+    </section>
+
+    <section aria-labelledby="local-processing">
+      <h2 id="local-processing">2. 照片的本地处理</h2>
+      <p>
+        当您通过系统文件选择器、系统“打开方式”或照片分享功能主动选择图片时，PanoViewer 会在设备本地读取图片内容，
+        用于生成展开、小行星、水晶球和隧道等全景视图。应用不会读取您未选择的文件，也不会将照片或照片内容上传至网络。
+      </p>
+      <p>
+        应用支持将当前画面生成 PNG 截图。只有在您主动执行保存操作并通过系统文件选择器指定位置后，截图才会写入该本地位置。
+      </p>
+    </section>
+
+    <section aria-labelledby="collection">
+      <h2 id="collection">3. 个人信息收集与设备权限</h2>
+      <p>PanoViewer 不提供注册或登录功能，不收集姓名、联系方式、账号、设备标识、位置信息、使用记录或其他个人信息。</p>
+      <p>
+        应用不声明或申请系统权限。打开照片和保存截图均通过 HarmonyOS 系统文件选择器完成，
+        应用只能访问您主动选择的文件或保存位置。应用不会在后台扫描您的照片或其他文件。
+      </p>
+    </section>
+
+    <section aria-labelledby="network">
+      <h2 id="network">4. 网络、广告与个性化推荐</h2>
+      <p>
+        PanoViewer 的照片渲染功能完全离线运行，不设置业务服务器，不包含广告、统计分析、用户追踪或个性化推荐功能。
+        当您主动点击项目主页入口时，系统可能调用外部浏览器打开 PanoViewer 的 GitHub 页面；应用不会随该操作传输照片或个人信息。
+      </p>
+    </section>
+
+    <section aria-labelledby="sharing">
+      <h2 id="sharing">5. 信息共享、转让与跨境处理</h2>
+      <p>
+        我们不会向第三方共享、转让或公开披露您的个人信息及照片内容。应用不设置服务器，
+        不进行服务器存储，也不涉及个人信息跨境传输。
+      </p>
+    </section>
+
+    <section aria-labelledby="storage">
+      <h2 id="storage">6. 存储地点与期限</h2>
+      <p>
+        用户选择的照片和渲染数据仅在当前设备上处理。应用不会将这些数据存储到我们的服务器。
+        关闭应用或打开其他照片后，相关临时渲染数据将被释放。您主动保存的截图会保留在您选择的本地位置，直至您自行删除。
+      </p>
+    </section>
+
+    <section aria-labelledby="third-party">
+      <h2 id="third-party">7. 第三方开源组件</h2>
+      <p>
+        PanoViewer 内置开源图形渲染库 three.js r128，用于通过 WebGL 在设备本地渲染 360° 全景照片。
+        该组件随应用一同提供，不会独立访问网络、收集个人信息或向第三方传输数据。
+      </p>
+    </section>
+
+    <section aria-labelledby="children">
+      <h2 id="children">8. 未成年人保护</h2>
+      <p>
+        本应用不以未成年人为特定服务对象，也不会主动收集未成年人的个人信息。
+        未成年人应在父母或其他监护人的指导下使用本应用。
+      </p>
+    </section>
+
+    <section aria-labelledby="rights">
+      <h2 id="rights">9. 管理您的信息</h2>
+      <p>
+        本应用不提供账户系统，也不在服务器保存个人信息，因此不涉及账户注销或服务器数据查询、更正和删除。
+        您可以通过系统文件管理功能查看或删除自己保存的截图，也可以随时停止使用或卸载本应用。
+      </p>
+    </section>
+
+    <section aria-labelledby="changes">
+      <h2 id="changes">10. 政策更新</h2>
+      <p>
+        当应用功能或数据处理方式发生变化时，我们会相应更新本政策，并在本页面公布新的生效日期。
+        对您的权益具有重大影响的变更，将通过应用更新说明或其他适当方式提示。
+      </p>
+    </section>
+
+    <section aria-labelledby="contact">
+      <h2 id="contact">11. 联系我们</h2>
+      <p>
+        如果您对本隐私政策或 PanoViewer 的数据处理方式有疑问、意见或建议，请发送邮件至
+        <a href="mailto:xhleung@foxmail.com">xhleung@foxmail.com</a>。我们会在收到邮件后尽快处理并回复。
+      </p>
+      <p>
+        项目主页：<a href="https://github.com/liang-xiaohui/PanoViewer" rel="noopener noreferrer">github.com/liang-xiaohui/PanoViewer</a>
+      </p>
+    </section>
+  </main>
+
+  <footer>
+    <p>© 2026 梁晓辉 · PanoViewer</p>
+  </footer>
+</body>
+</html>
